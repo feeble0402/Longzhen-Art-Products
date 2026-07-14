@@ -1,0 +1,16 @@
+node_modules/
+.nuxt/
+.output/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+*.db
+*.sqlite3
+uploads/
+backups/
+.DS_Store
+.idea/
+.vscode/

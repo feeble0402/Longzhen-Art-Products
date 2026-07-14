@@ -1,0 +1,2 @@
+<script setup lang="ts">import { copy } from '~/data/site'</script>
+<template><section class="page-hero"><div class="shell"><p>CONTACT</p><h1>{{ copy.contact }}</h1></div></section><section class="section narrow contact-panel"><h2>{{ copy.line }}</h2><p>Official LINE ID and QR code are pending owner delivery. This page intentionally does not include an online contact form.</p><a class="gold-button" href="#" aria-disabled="true">LINE account pending</a></section></template>

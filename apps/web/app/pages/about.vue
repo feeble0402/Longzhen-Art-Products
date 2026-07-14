@@ -1,0 +1,2 @@
+<script setup lang="ts">import { copy } from '~/data/site'</script>
+<template><section class="page-hero"><div class="shell"><p>ABOUT</p><h1>{{ copy.about }}</h1></div></section><section class="story shell"><img src="/images/prototype/asset-01-9a9223d67eb2.jpg" alt="Wood art detail"><div><h2>{{ copy.headline }}</h2><p>Longzhen presents natural materials through a calm, gallery-like experience. Formal brand history and cultural copy will be replaced after owner approval.</p></div></section></template>
