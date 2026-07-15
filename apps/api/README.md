@@ -1,3 +1,30 @@
+# Longzhen API
+
+All routes use the `/api/v1` prefix. Run from the repository root with `npm.cmd run dev:api`.
+
+Public routes provide paginated product lists/details and `/media/products/:objectKey`. Admin routes under `/admin/categories` and `/admin/products` provide CRUD plus multi-image upload.
+
+Upload images with `POST /api/v1/admin/products/:id/images` as multipart data using repeated `images` fields. It accepts up to 10 JPEG, PNG, or WebP files per request and 10 MB per file. Optional repeated `altTexts` fields must match the image count. Reorder with `PATCH /admin/products/:id/images/order`, select a main image with `PATCH /admin/products/:productId/images/:imageId/primary`, and delete with `DELETE` on the same image route.
+
+These image limits are provisional pending owner confirmation.
+
+## Administrator authentication
+
+Create the first administrator from local environment variables:
+
+```powershell
+$env:ADMIN_EMAIL='admin@example.com'
+$env:ADMIN_DISPLAY_NAME='Administrator'
+$env:ADMIN_PASSWORD='use-at-least-12-characters'
+npm.cmd run admin:create --workspace=api
+```
+
+Sign in with `POST /api/v1/auth/login`, then send `Authorization: Bearer <accessToken>` to every `/api/v1/admin/*` route. Tokens expire after 30 minutes. Five consecutive failures lock an account for 15 minutes; password reset invalidates existing tokens.
+
+Account routes are available at `/api/v1/admin/admins`, current-account details at `/api/v1/admin/admins/me`, password reset at `/api/v1/admin/admins/:id/reset-password`, and paginated audit records at `/api/v1/admin/audit-logs`.
+
+---
+
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>

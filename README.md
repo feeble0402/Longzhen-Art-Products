@@ -23,6 +23,12 @@ npm install
 npm run dev
 ```
 
+Apply database migrations after PostgreSQL is available:
+
+```powershell
+npm run db:deploy --workspace=api
+```
+
 ## Quality checks
 
 ```powershell

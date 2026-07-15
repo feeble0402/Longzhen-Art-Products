@@ -4,6 +4,7 @@
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
+    "postinstall": "npm run prisma:generate --workspace=api",
     "dev": "npm run dev --workspace=web",
     "dev:web": "npm run dev --workspace=web",
     "dev:api": "npm run start:dev --workspace=api",

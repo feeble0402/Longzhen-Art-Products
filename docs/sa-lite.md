@@ -71,6 +71,7 @@ stateDiagram-v2
 | product.publicPrice | conditional | decimal | 僅 PUBLIC_PRICE 對外輸出 |
 | product.shopeeUrl | no | url | 個別商品連結 |
 | product.acceptsLine | yes | boolean | 是否接受 LINE 詢問 |
+| product.images | no | image[] | 可上傳多張商品圖片，並指定排序與主圖 |
 
 ## Acceptance
 
