@@ -7,27 +7,49 @@ const { data: featured } = await useAsyncData('home-products', () =>
     query: { page: 1, pageSize: 3, homeOnly: 'true' },
   }),
 )
+interface CarouselSlide {
+  id: string
+  desktopKey: string
+  mobileKey: string
+  title?: string | null
+  subtitle?: string | null
+  buttonLabel?: string | null
+  targetUrl?: string | null
+}
+const { data: carousel } = await useAsyncData('home-carousel', () =>
+  $fetch<CarouselSlide[]>(`${config.public.apiBaseUrl}/carousel-slides`),
+)
 const slide = ref(0)
-const slides = [
-  { image: '/images/prototype/asset-01-9a9223d67eb2.jpg', title: copy.headline, subtitle: copy.subline },
-  { image: '/images/prototype/asset-06-8c61c443b385.jpg', title: '\u4e00\u5668\u4e00\u7269\u3000\u81ea\u6709\u795e\u97fb', subtitle: '\u7d30\u8cde\u6728\u7d0b\u8207\u5de5\u85dd\u7559\u4e0b\u7684\u6eab\u5ea6' },
-  { image: '/images/prototype/asset-07-e8c6d7b20543.jpg', title: '\u85dd\u54c1\u5165\u5ba4\u3000\u559c\u6a02\u76f8\u96a8', subtitle: '\u70ba\u65e5\u5e38\u7559\u4e0b\u4e00\u8655\u5b89\u5b9a\u7684\u98a8\u666f' },
+const fallbackSlides = [
+  { desktopImage: '/images/prototype/asset-01-9a9223d67eb2.jpg', mobileImage: '/images/prototype/asset-01-9a9223d67eb2.jpg', title: copy.headline, subtitle: copy.subline, buttonLabel: null, targetUrl: null },
+  { desktopImage: '/images/prototype/asset-06-8c61c443b385.jpg', mobileImage: '/images/prototype/asset-06-8c61c443b385.jpg', title: '一器一物　自有神韻', subtitle: '細賞木紋與工藝留下的溫度', buttonLabel: null, targetUrl: null },
+  { desktopImage: '/images/prototype/asset-07-e8c6d7b20543.jpg', mobileImage: '/images/prototype/asset-07-e8c6d7b20543.jpg', title: '藝品入室　喜樂相隨', subtitle: '為日常留下一處安定的風景', buttonLabel: null, targetUrl: null },
 ]
-const currentSlide = computed(() => slides[slide.value] ?? slides[0]!)
-const previous = () => { slide.value = (slide.value + slides.length - 1) % slides.length }
-const next = () => { slide.value = (slide.value + 1) % slides.length }
+const slides = computed(() => carousel.value?.length
+  ? carousel.value.map(item => ({
+      desktopImage: `${config.public.apiBaseUrl}/media/carousel/${item.desktopKey}`,
+      mobileImage: `${config.public.apiBaseUrl}/media/carousel/${item.mobileKey}`,
+      title: item.title || copy.headline,
+      subtitle: item.subtitle || copy.subline,
+      buttonLabel: item.buttonLabel,
+      targetUrl: item.targetUrl,
+    }))
+  : fallbackSlides)
+const currentSlide = computed(() => slides.value[slide.value] ?? slides.value[0]!)
+const previous = () => { slide.value = (slide.value + slides.value.length - 1) % slides.value.length }
+const next = () => { slide.value = (slide.value + 1) % slides.value.length }
 </script>
 
 <template>
   <section class="hero-section shell">
     <div class="hero-frame">
-      <div class="hero-copy"><h1 style="white-space: pre-line">{{ currentSlide.title }}</h1><div class="ornament"><span />&#12336;<span /></div><p>{{ currentSlide.subtitle }}</p></div>
-      <img :src="currentSlide.image" :alt="currentSlide.title" width="1200" height="680">
+      <div class="hero-copy"><h1 style="white-space: pre-line">{{ currentSlide.title }}</h1><div class="ornament"><span />&#12336;<span /></div><p>{{ currentSlide.subtitle }}</p><NuxtLink v-if="currentSlide.buttonLabel && currentSlide.targetUrl" class="hero-cta" :to="currentSlide.targetUrl">{{ currentSlide.buttonLabel }}</NuxtLink></div>
+      <picture class="hero-picture"><source media="(max-width: 760px)" :srcset="currentSlide.mobileImage"><img :src="currentSlide.desktopImage" :alt="currentSlide.title" width="1200" height="680"></picture>
       <button class="hero-arrow prev" type="button" aria-label="Previous" @click="previous">&#8592;</button>
       <button class="hero-arrow next" type="button" aria-label="Next" @click="next">&#8594;</button>
       <div class="cloud-line" aria-hidden="true" />
     </div>
-    <div class="hero-dots"><button v-for="(_, i) in slides" :key="i" :class="{ active: slide === i }" :aria-label="`Slide ${i + 1}`" @click="slide = i" /></div>
+    <div class="hero-dots"><button v-for="(_, i) in slides" :key="i" :class="{ active: slide === i }" :aria-label="`第 ${i + 1} 張輪播`" @click="slide = i" /></div>
   </section>
   <section class="section shell">
     <SectionTitle :title="copy.featured" />

@@ -8,6 +8,8 @@ Upload images with `POST /api/v1/admin/products/:id/images` as multipart data us
 
 These image limits are provisional pending owner confirmation.
 
+Homepage carousel slides are available publicly from `GET /api/v1/carousel-slides`; images are served by `/api/v1/media/carousel/:objectKey`. Protected CRUD uses `/api/v1/admin/carousel-slides` with `desktopImage` and `mobileImage` multipart fields, optional scheduling, activation, ordering, copy, and target-link fields.
+
 ## Administrator authentication
 
 Create the first administrator from local environment variables:

@@ -14,3 +14,5 @@ Authentication tests cover valid login, Bearer token creation, fifth-failure loc
 The public storefront integration check creates temporary public-price and LINE-offer products, verifies category filtering and public-price-first sorting, confirms the LINE-offer response contains neither `publicPrice` nor `salePrice`, renders the Nuxt detail route through SSR, checks the homepage-only query, and removes all temporary records.
 
 Product-detail review must also verify image order/primary-image changes, specification and tag rendering, manual recommendation priority, same-category fallback, featured fallback, and exclusion of sold-out recommendations unless explicitly enabled. Every related-product payload is passed through the same public price projection as catalog products.
+
+Carousel review verifies that create requires distinct desktop and mobile images, invalid schedules are rejected, inactive/future/expired slides stay out of the public response, responsive images render through `<picture>`, and replacing or deleting a slide removes superseded local files.

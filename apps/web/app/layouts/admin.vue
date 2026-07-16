@@ -30,6 +30,7 @@ async function logout() {
       <ElMenu :default-active="route.path" router class="admin-menu">
         <ElMenuItem index="/admin/products">商品管理</ElMenuItem>
         <ElMenuItem index="/admin/categories">分類管理</ElMenuItem>
+        <ElMenuItem index="/admin/carousel">首頁輪播</ElMenuItem>
         <ElMenuItem index="/admin/admins">管理員</ElMenuItem>
         <ElMenuItem index="/admin/audit">操作紀錄</ElMenuItem>
       </ElMenu>

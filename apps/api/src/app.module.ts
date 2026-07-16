@@ -8,6 +8,7 @@ import { MediaModule } from './media/media.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminsModule } from './admins/admins.module';
 import { AuditModule } from './audit/audit.module';
+import { CarouselModule } from './carousel/carousel.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AuditModule } from './audit/audit.module';
     AdminsModule,
     CategoriesModule,
     ProductsModule,
+    CarouselModule,
     MediaModule,
   ],
   controllers: [AppController],

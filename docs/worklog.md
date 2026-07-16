@@ -97,3 +97,19 @@
 - Root Nuxt typecheck passes.
 - Nest API production compilation passes.
 - API unit tests pass (7/7, including related-product price privacy) and E2E tests pass (1/1).
+
+## 2026-07-16 — Homepage carousel management
+
+### Done
+- Added protected administrator carousel CRUD with activation, ordering, scheduling, copy, link, and responsive desktop/mobile image uploads.
+- Added a public scheduled-carousel endpoint and isolated carousel media delivery/storage.
+- Added a Chinese administrator carousel page and navigation entry.
+- Connected the homepage hero to published carousel data with responsive `<picture>` rendering and the approved static prototype as an empty-state fallback.
+
+### Decisions
+- Carousel uploads use the existing provisional JPEG/PNG/WebP, 10 MB-per-file policy.
+- Both desktop and mobile images are required on creation; either can be independently replaced later.
+
+### Verification
+- Nuxt typecheck, Nest/Nuxt production builds, API unit tests (10/10), and E2E tests (1/1) pass.
+- Confirmed authenticated multipart creation with two responsive images, public schedule visibility, media delivery, deletion, and test-record cleanup against local PostgreSQL.
