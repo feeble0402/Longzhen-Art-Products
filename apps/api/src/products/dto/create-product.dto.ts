@@ -7,6 +7,7 @@ import {
   IsEnum,
   IsInt,
   IsNumberString,
+  IsObject,
   IsOptional,
   IsString,
   IsUrl,
@@ -40,6 +41,15 @@ export class CreateProductDto {
   @Length(1, 20000)
   description!: string;
 
+  @IsOptional()
+  @IsObject()
+  specifications?: Record<string, string>;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  notices?: string | null;
+
   @IsArray()
   @ArrayNotEmpty()
   @ArrayUnique()
@@ -55,7 +65,20 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsNumberString()
-  originalPrice?: string;
+  originalPrice?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  tagNames?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  recommendationIds?: string[];
 
   @IsOptional()
   @IsEnum(SaleStatus)
@@ -64,7 +87,7 @@ export class CreateProductDto {
   @IsOptional()
   @IsUrl({ require_protocol: true })
   @MaxLength(2048)
-  shopeeUrl?: string;
+  shopeeUrl?: string | null;
 
   @IsOptional()
   @IsBoolean()
@@ -77,7 +100,7 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   @MaxLength(2000)
-  lineInquiryTemplate?: string;
+  lineInquiryTemplate?: string | null;
 
   @IsOptional()
   @IsBoolean()
@@ -100,4 +123,18 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   isBestSeller?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showSoldOutInRelated?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(70)
+  seoTitle?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(170)
+  seoDescription?: string | null;
 }

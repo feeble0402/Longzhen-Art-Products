@@ -27,3 +27,5 @@ Explicit join tables preserve relationship metadata and ordering. JSONB is limit
 `ProductImage` is a one-to-many child of `Product`, so a product may own multiple images. Each image stores its object key, verified MIME type, byte size, dimensions, display order, alternative text, and primary-image flag. The first uploaded image becomes primary when the product has no images; administrators may later reorder images or select another primary image.
 
 Local development stores uploaded files under `apps/api/uploads/products`, which Git excludes. The isolated storage service can be replaced by production object storage without changing product business rules or the HTTP contract.
+
+Migration `20260716000100_enforce_non_public_price` clears and rejects `sale_price` for `LINE_OFFER` and `CONTACT_PRICE`. This makes `BR-003` deterministic at the database layer: price sorting uses `sale_price NULLS LAST`, while public DTO projection remains responsible for `BR-001` channel protection.

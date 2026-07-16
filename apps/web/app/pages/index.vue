@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { copy, products } from '~/data/site'
+import { copy } from '~/data/site'
+import type { PublicProductPage } from '~/types/product'
+const config = useRuntimeConfig()
+const { data: featured } = await useAsyncData('home-products', () =>
+  $fetch<PublicProductPage>(`${config.public.apiBaseUrl}/products`, {
+    query: { page: 1, pageSize: 3, homeOnly: 'true' },
+  }),
+)
 const slide = ref(0)
 const slides = [
   { image: '/images/prototype/asset-01-9a9223d67eb2.jpg', title: copy.headline, subtitle: copy.subline },
@@ -24,7 +31,8 @@ const next = () => { slide.value = (slide.value + 1) % slides.length }
   </section>
   <section class="section shell">
     <SectionTitle :title="copy.featured" />
-    <div class="product-grid"><ProductCard v-for="product in products.slice(0, 3)" :key="product.id" :product="product" /></div>
+    <div v-if="featured?.items.length" class="product-grid"><ProductCard v-for="product in featured.items" :key="product.id" :product="product" /></div>
+    <p v-else class="empty-state">精選商品準備中，歡迎稍後再訪。</p>
     <div class="more-row"><NuxtLink class="gold-button" to="/products">{{ copy.more }}</NuxtLink></div>
   </section>
 </template>

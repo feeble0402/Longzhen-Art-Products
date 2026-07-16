@@ -15,6 +15,10 @@ export class CategoriesService {
     return this.repository.findAll();
   }
 
+  findPublic() {
+    return this.repository.findPublic();
+  }
+
   async create(dto: CreateCategoryDto) {
     if (dto.parentId) await this.requireCategory(dto.parentId);
     return this.repository.create(dto);

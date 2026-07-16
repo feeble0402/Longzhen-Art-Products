@@ -2,7 +2,7 @@
 
 All routes use the `/api/v1` prefix. Run from the repository root with `npm.cmd run dev:api`.
 
-Public routes provide paginated product lists/details and `/media/products/:objectKey`. Admin routes under `/admin/categories` and `/admin/products` provide CRUD plus multi-image upload.
+Public routes provide active categories, paginated product lists/details, and `/media/products/:objectKey`. `GET /products` accepts `search`, `categoryId`, `sort` (`newest`, `priceAsc`, `priceDesc`), and `homeOnly=true`. Admin routes under `/admin/categories` and `/admin/products` provide CRUD plus multi-image upload.
 
 Upload images with `POST /api/v1/admin/products/:id/images` as multipart data using repeated `images` fields. It accepts up to 10 JPEG, PNG, or WebP files per request and 10 MB per file. Optional repeated `altTexts` fields must match the image count. Reorder with `PATCH /admin/products/:id/images/order`, select a main image with `PATCH /admin/products/:productId/images/:imageId/primary`, and delete with `DELETE` on the same image route.
 

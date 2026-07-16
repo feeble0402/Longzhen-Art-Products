@@ -14,6 +14,20 @@ export class CategoriesRepository {
     });
   }
 
+  findPublic() {
+    return this.prisma.category.findMany({
+      where: { active: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        parentId: true,
+        name: true,
+        slug: true,
+        description: true,
+      },
+    });
+  }
+
   findById(id: string) {
     return this.prisma.category.findUnique({ where: { id } });
   }

@@ -14,16 +14,33 @@ interface ProductImage { id: string; objectKey: string; altText: string; isPrima
 interface Product {
   id: string; sku: string; slug: string; name: string; shortDescription: string
   description: string; priceMode: string; saleStatus: string; salePrice?: string | number | null
-  acceptsLine: boolean; acceptsShopee: boolean; shopeeUrl?: string | null
+  originalPrice?: string | number | null; specifications?: Record<string, unknown> | null; notices?: string | null
+  acceptsLine: boolean; acceptsShopee: boolean; shopeeUrl?: string | null; lineInquiryTemplate?: string | null
+  showOnHome: boolean; homeSortOrder?: number | null; isNew: boolean; isFeatured: boolean; isBestSeller: boolean
+  showSoldOutInRelated: boolean; seoTitle?: string | null; seoDescription?: string | null
   categories: Array<{ categoryId: string; category: Category }>; images: ProductImage[]
+  tags: Array<{ tag: { name: string } }>
+  recommendations: Array<{ targetProductId: string; targetProduct: { id: string; name: string; sku: string } }>
 }
 interface ProductPage { items: Product[]; total: number; page: number; pageSize: number }
+
+const saleStatusOptions = [
+  { value: 'DRAFT', label: '草稿' },
+  { value: 'ON_SALE', label: '販售中' },
+  { value: 'SOLD_OUT', label: '已售完' },
+  { value: 'PAUSED', label: '暫停販售' },
+  { value: 'UNLISTED', label: '已下架' },
+]
+function saleStatusLabel(value: string) {
+  return saleStatusOptions.find(option => option.value === value)?.label ?? value
+}
 
 const api = useAdminApi()
 const config = useRuntimeConfig()
 const loading = ref(false)
 const saving = ref(false)
 const products = ref<Product[]>([])
+const productOptions = ref<Product[]>([])
 const categories = ref<Category[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -37,23 +54,36 @@ const emptyForm = () => ({
   sku: '', slug: '', name: '', shortDescription: '', description: '', categoryIds: [] as string[],
   priceMode: 'LINE_OFFER', publicPrice: '', saleStatus: 'DRAFT', acceptsLine: true,
   acceptsShopee: false, shopeeUrl: '', showOnHome: false, isNew: false,
-  isFeatured: false, isBestSeller: false, homeSortOrder: 0,
+  isFeatured: false, isBestSeller: false, homeSortOrder: 0, originalPrice: '',
+  specificationsText: '', notices: '', lineInquiryTemplate: '', tagNamesText: '',
+  recommendationIds: [] as string[], showSoldOutInRelated: false, seoTitle: '', seoDescription: '',
 })
 const form = reactive(emptyForm())
 
 function imageUrl(key: string) { return `${config.public.apiBaseUrl}/media/products/${key}` }
 function resetForm() { Object.assign(form, emptyForm()); editingId.value = null; files.value = [] }
+function formatSpecifications(value?: Record<string, unknown> | null) {
+  return Object.entries(value ?? {}).map(([key, item]) => `${key}：${String(item)}`).join('\n')
+}
+function parseSpecifications(value: string) {
+  return Object.fromEntries(value.split(/\r?\n/).map(line => {
+    const separator = line.search(/[:：]/)
+    return separator < 0 ? ['', ''] : [line.slice(0, separator).trim(), line.slice(separator + 1).trim()]
+  }).filter(([key]) => key))
+}
 
 async function load() {
   loading.value = true
   try {
-    const [productPage, categoryList] = await Promise.all([
+    const [productPage, categoryList, optionPage] = await Promise.all([
       api.request<ProductPage>(`/admin/products?page=${page.value}&pageSize=${pageSize.value}&search=${encodeURIComponent(search.value)}`),
       api.request<Category[]>('/admin/categories'),
+      api.request<ProductPage>('/admin/products?page=1&pageSize=100'),
     ])
     products.value = productPage.items
     total.value = productPage.total
     categories.value = categoryList
+    productOptions.value = optionPage.items
   } finally { loading.value = false }
 }
 
@@ -65,8 +95,16 @@ function openEdit(product: Product) {
     shortDescription: product.shortDescription, description: product.description,
     categoryIds: product.categories.map(item => item.categoryId), priceMode: product.priceMode,
     publicPrice: product.salePrice?.toString() ?? '', saleStatus: product.saleStatus,
+    originalPrice: product.originalPrice?.toString() ?? '',
     acceptsLine: product.acceptsLine, acceptsShopee: product.acceptsShopee,
-    shopeeUrl: product.shopeeUrl ?? '',
+    shopeeUrl: product.shopeeUrl ?? '', lineInquiryTemplate: product.lineInquiryTemplate ?? '',
+    showOnHome: product.showOnHome, homeSortOrder: product.homeSortOrder ?? 0,
+    isNew: product.isNew, isFeatured: product.isFeatured, isBestSeller: product.isBestSeller,
+    specificationsText: formatSpecifications(product.specifications), notices: product.notices ?? '',
+    tagNamesText: product.tags.map(item => item.tag.name).join('、'),
+    recommendationIds: product.recommendations.map(item => item.targetProductId),
+    showSoldOutInRelated: product.showSoldOutInRelated,
+    seoTitle: product.seoTitle ?? '', seoDescription: product.seoDescription ?? '',
   })
   dialogOpen.value = true
 }
@@ -85,8 +123,17 @@ async function save() {
     const payload = {
       ...form,
       publicPrice: form.publicPrice || undefined,
-      shopeeUrl: form.shopeeUrl || undefined,
+      originalPrice: form.originalPrice || null,
+      shopeeUrl: form.shopeeUrl || null,
+      lineInquiryTemplate: form.lineInquiryTemplate || null,
+      specifications: parseSpecifications(form.specificationsText),
+      notices: form.notices || null,
+      tagNames: [...new Set(form.tagNamesText.split(/[,，、]/).map(item => item.trim()).filter(Boolean))],
+      seoTitle: form.seoTitle || null,
+      seoDescription: form.seoDescription || null,
     }
+    delete (payload as Partial<typeof payload>).specificationsText
+    delete (payload as Partial<typeof payload>).tagNamesText
     const product = editingId.value
       ? await api.request<Product>(`/admin/products/${editingId.value}`, { method: 'PATCH', body: payload })
       : await api.request<Product>('/admin/products', { method: 'POST', body: payload })
@@ -121,6 +168,18 @@ async function setPrimary(product: Product, image: ProductImage) {
   await load()
 }
 
+async function moveImage(product: Product, imageIndex: number, direction: -1 | 1) {
+  const targetIndex = imageIndex + direction
+  if (targetIndex < 0 || targetIndex >= product.images.length) return
+  const imageIds = product.images.map(image => image.id)
+  ;[imageIds[imageIndex], imageIds[targetIndex]] = [imageIds[targetIndex]!, imageIds[imageIndex]!]
+  await api.request(`/admin/products/${product.id}/images/order`, {
+    method: 'PATCH', body: { imageIds },
+  })
+  ElMessage.success('圖片順序已更新')
+  await load()
+}
+
 onMounted(() => void load())
 </script>
 
@@ -140,11 +199,11 @@ onMounted(() => void load())
       </ElTableColumn>
       <ElTableColumn prop="sku" label="商品編號" width="130" />
       <ElTableColumn prop="name" label="商品名稱" min-width="190" />
-      <ElTableColumn label="狀態" width="110"><template #default="{ row }"><ElTag>{{ row.saleStatus }}</ElTag></template></ElTableColumn>
+      <ElTableColumn label="狀態" width="110"><template #default="{ row }"><ElTag>{{ saleStatusLabel(row.saleStatus) }}</ElTag></template></ElTableColumn>
       <ElTableColumn label="圖片數" width="82"><template #default="{ row }">{{ row.images.length }}</template></ElTableColumn>
       <ElTableColumn label="操作" width="210" fixed="right"><template #default="{ row }"><ElButton link type="primary" @click="openEdit(row as Product)">編輯</ElButton><ElButton link type="danger" @click="remove(row as Product)">刪除</ElButton></template></ElTableColumn>
       <ElTableColumn type="expand">
-        <template #default="{ row }"><div class="image-strip"><div v-for="image in row.images" :key="image.id" class="image-item"><ElImage :src="imageUrl(image.objectKey)" fit="cover" /><ElTag v-if="image.isPrimary" size="small">主圖</ElTag><div><ElButton link type="primary" :disabled="image.isPrimary" @click="setPrimary(row as Product,image)">設主圖</ElButton><ElButton link type="danger" @click="removeImage(row as Product,image)">刪除</ElButton></div></div></div></template>
+        <template #default="{ row }"><div class="image-strip"><div v-for="(image, imageIndex) in row.images" :key="image.id" class="image-item"><ElImage :src="imageUrl(image.objectKey)" fit="cover" /><div class="image-meta"><ElTag v-if="image.isPrimary" size="small">主圖</ElTag><span>第 {{ Number(imageIndex) + 1 }} 張</span></div><div class="image-actions"><ElButton link :disabled="Number(imageIndex)===0" @click="moveImage(row as Product,Number(imageIndex),-1)">上移</ElButton><ElButton link :disabled="Number(imageIndex)===row.images.length-1" @click="moveImage(row as Product,Number(imageIndex),1)">下移</ElButton><ElButton link type="primary" :disabled="image.isPrimary" @click="setPrimary(row as Product,image)">設主圖</ElButton><ElButton link type="danger" @click="removeImage(row as Product,image)">刪除</ElButton></div></div></div></template>
       </ElTableColumn>
     </ElTable>
     <ElPagination v-model:current-page="page" v-model:page-size="pageSize" layout="total, prev, pager, next" :total="total" class="pager" @current-change="load" />
@@ -156,10 +215,18 @@ onMounted(() => void load())
         <ElFormItem label="商品分類"><ElSelect v-model="form.categoryIds" multiple filterable class="full"><ElOption v-for="category in categories" :key="category.id" :label="category.name" :value="category.id" /></ElSelect></ElFormItem>
         <ElFormItem label="商品簡介"><ElInput v-model="form.shortDescription" maxlength="500" show-word-limit /></ElFormItem>
         <ElFormItem label="詳細說明"><ElInput v-model="form.description" type="textarea" :rows="5" /></ElFormItem>
-        <div class="form-grid"><ElFormItem label="價格模式"><ElSelect v-model="form.priceMode" class="full"><ElOption label="公開價格" value="PUBLIC_PRICE" /><ElOption label="LINE 詢價" value="LINE_OFFER" /><ElOption label="聯絡詢價" value="CONTACT_PRICE" /></ElSelect></ElFormItem><ElFormItem v-if="form.priceMode==='PUBLIC_PRICE'" label="公開價格"><ElInput v-model="form.publicPrice" inputmode="decimal" /></ElFormItem></div>
-        <div class="form-grid"><ElFormItem label="銷售狀態"><ElSelect v-model="form.saleStatus" class="full"><ElOption v-for="status in ['DRAFT','ON_SALE','SOLD_OUT','PAUSED','UNLISTED']" :key="status" :label="status" :value="status" /></ElSelect></ElFormItem><ElFormItem label="首頁排序"><ElInputNumber v-model="form.homeSortOrder" :min="0" /></ElFormItem></div>
-        <div class="switches"><ElSwitch v-model="form.acceptsLine" active-text="接受 LINE 詢問" /><ElSwitch v-model="form.acceptsShopee" active-text="啟用蝦皮連結" /><ElSwitch v-model="form.showOnHome" active-text="首頁顯示" /></div>
+        <ElFormItem label="商品規格（每行一項，例如：材質：沉香木）"><ElInput v-model="form.specificationsText" type="textarea" :rows="4" /></ElFormItem>
+        <ElFormItem label="收藏與保養須知"><ElInput v-model="form.notices" type="textarea" :rows="3" /></ElFormItem>
+        <ElFormItem label="商品標籤（以逗號分隔）"><ElInput v-model="form.tagNamesText" placeholder="沉香、手工雕刻、限量" /></ElFormItem>
+        <div class="form-grid"><ElFormItem label="價格模式"><ElSelect v-model="form.priceMode" class="full"><ElOption label="公開價格" value="PUBLIC_PRICE" /><ElOption label="LINE 詢價" value="LINE_OFFER" /><ElOption label="聯絡詢價" value="CONTACT_PRICE" /></ElSelect></ElFormItem><ElFormItem v-if="form.priceMode==='PUBLIC_PRICE'" label="公開售價"><ElInput v-model="form.publicPrice" inputmode="decimal" /></ElFormItem></div>
+        <ElFormItem v-if="form.priceMode==='PUBLIC_PRICE'" label="商品原價（選填，用於顯示折扣前價格）"><ElInput v-model="form.originalPrice" inputmode="decimal" /></ElFormItem>
+        <div class="form-grid"><ElFormItem label="銷售狀態"><ElSelect v-model="form.saleStatus" class="full"><ElOption v-for="status in saleStatusOptions" :key="status.value" :label="status.label" :value="status.value" /></ElSelect></ElFormItem><ElFormItem label="首頁排序"><ElInputNumber v-model="form.homeSortOrder" :min="0" /></ElFormItem></div>
+        <div class="switches"><ElSwitch v-model="form.acceptsLine" active-text="接受 LINE 詢問" /><ElSwitch v-model="form.acceptsShopee" active-text="啟用蝦皮連結" /><ElSwitch v-model="form.showOnHome" active-text="首頁顯示" /><ElSwitch v-model="form.isNew" active-text="新品" /><ElSwitch v-model="form.isFeatured" active-text="精選" /><ElSwitch v-model="form.isBestSeller" active-text="熱銷" /></div>
         <ElFormItem v-if="form.acceptsShopee" label="蝦皮商品網址"><ElInput v-model="form.shopeeUrl" /></ElFormItem>
+        <ElFormItem v-if="form.acceptsLine" label="LINE 詢問文字（留空會自動帶入商品名稱與編號）"><ElInput v-model="form.lineInquiryTemplate" type="textarea" :rows="3" /></ElFormItem>
+        <ElFormItem label="人工推薦商品（排序依選取順序）"><ElSelect v-model="form.recommendationIds" multiple filterable class="full" placeholder="未指定時會依同分類與精選商品推薦"><ElOption v-for="productOption in productOptions.filter(item=>item.id!==editingId)" :key="productOption.id" :label="`${productOption.name}（${productOption.sku}）`" :value="productOption.id" /></ElSelect></ElFormItem>
+        <ElFormItem><ElSwitch v-model="form.showSoldOutInRelated" active-text="推薦區可顯示已售完商品" /></ElFormItem>
+        <div class="form-grid"><ElFormItem label="SEO 標題（最多 70 字）"><ElInput v-model="form.seoTitle" maxlength="70" show-word-limit /></ElFormItem><ElFormItem label="SEO 說明（最多 170 字）"><ElInput v-model="form.seoDescription" maxlength="170" show-word-limit /></ElFormItem></div>
         <ElFormItem label="新增圖片（一次最多 10 張）"><ElUpload v-model:file-list="files" action="#" multiple :auto-upload="false" accept="image/jpeg,image/png,image/webp" :limit="10" list-type="picture-card"><span class="upload-plus">＋</span></ElUpload></ElFormItem>
       </ElForm>
       <template #footer><ElButton @click="dialogOpen=false">取消</ElButton><ElButton type="primary" :loading="saving" @click="save">儲存</ElButton></template>
@@ -168,5 +235,5 @@ onMounted(() => void load())
 </template>
 
 <style scoped>
-.page-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}.page-toolbar h1{margin:0;color:#3b2a20;font-size:28px}.page-toolbar p{margin:3px 0 0;color:#7e7066}.page-toolbar .el-button{--el-color-primary:#5a3c28}.filter-row{display:flex;gap:10px;max-width:460px;margin-bottom:18px}.thumb{width:60px;height:60px;border-radius:6px}.pager{justify-content:flex-end;margin-top:22px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.full{width:100%}.switches{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:20px}.image-strip{display:flex;gap:14px;flex-wrap:wrap;padding:16px}.image-item{width:140px}.image-item>.el-image{width:140px;height:110px;border-radius:6px}.image-item>.el-tag{display:block;width:max-content;margin-top:5px}.upload-plus{font-size:30px;color:#8a7768}@media(max-width:700px){.form-grid{grid-template-columns:1fr}.page-toolbar{align-items:flex-start;gap:12px}.filter-row{max-width:none}}
+.page-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}.page-toolbar h1{margin:0;color:#3b2a20;font-size:28px}.page-toolbar p{margin:3px 0 0;color:#7e7066}.page-toolbar .el-button{--el-color-primary:#5a3c28}.filter-row{display:flex;gap:10px;max-width:460px;margin-bottom:18px}.thumb{width:60px;height:60px;border-radius:6px}.pager{justify-content:flex-end;margin-top:22px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.full{width:100%}.switches{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:20px}.image-strip{display:flex;gap:14px;flex-wrap:wrap;padding:16px}.image-item{width:170px}.image-item>.el-image{width:170px;height:125px;border-radius:6px}.image-meta{display:flex;min-height:28px;align-items:center;justify-content:space-between;color:#7e7066;font-size:12px}.image-actions{display:flex;flex-wrap:wrap}.upload-plus{font-size:30px;color:#8a7768}@media(max-width:700px){.form-grid{grid-template-columns:1fr}.page-toolbar{align-items:flex-start;gap:12px}.filter-row{max-width:none}}
 </style>

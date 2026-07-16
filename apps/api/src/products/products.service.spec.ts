@@ -7,6 +7,8 @@ import { ProductsService } from './products.service';
 describe('ProductsService', () => {
   const repository = {
     findPublic: jest.fn(),
+    findPublicBySlug: jest.fn(),
+    findRelatedProducts: jest.fn(),
     findById: jest.fn(),
     create: jest.fn(),
     addImages: jest.fn(),
@@ -36,6 +38,29 @@ describe('ProductsService', () => {
     expect(result.items[0]).not.toHaveProperty('salePrice');
     expect(result.items[0]).not.toHaveProperty('publicPrice');
     expect(result.items[0]).not.toHaveProperty('originalPrice');
+  });
+
+  it('never exposes a non-public price from related products', async () => {
+    repository.findPublicBySlug.mockResolvedValue({
+      id: 'source-id',
+      priceMode: PriceMode.PUBLIC_PRICE,
+      salePrice: '1200',
+      originalPrice: null,
+      showSoldOutInRelated: false,
+      categories: [{ categoryId: 'category-id' }],
+    });
+    repository.findRelatedProducts.mockResolvedValue([{
+      id: 'related-id',
+      priceMode: PriceMode.LINE_OFFER,
+      salePrice: '999999',
+      originalPrice: '1000000',
+    }]);
+
+    const result = await service.findPublicBySlug('source-product');
+
+    expect(result.relatedProducts[0]).not.toHaveProperty('salePrice');
+    expect(result.relatedProducts[0]).not.toHaveProperty('publicPrice');
+    expect(result.relatedProducts[0]).not.toHaveProperty('originalPrice');
   });
 
   it('rejects a public-price product without a public price', async () => {

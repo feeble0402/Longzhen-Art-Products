@@ -68,3 +68,32 @@
 
 ### Next
 - Conduct owner UI review at `/admin/login`, then refine copy, field grouping, and confirmed image limits before adding CMS/FAQ/carousel management.
+
+## 2026-07-16 — Public storefront API integration
+
+### Done
+- Replaced static product fixtures on the homepage, product catalog, cards, and product detail with PostgreSQL-backed public APIs.
+- Added active public categories, search, category filtering, pagination, newest/price sorting, and homepage selection.
+- Added multi-image gallery, sale-status messaging, public price formatting, Shopee routing, LINE inquiry copy with fallback, and contact fallback.
+- Added product SEO metadata, Open Graph image, and price-safe Product structured data.
+- Added a database constraint and data migration ensuring non-public products cannot retain `sale_price`.
+
+### Verification
+- Confirmed public-price products sort before LINE-offer products for ascending price.
+- Confirmed LINE-offer public payloads contain no public or internal price fields.
+- Confirmed homepage filtering, slug detail API, and Nuxt SSR detail rendering.
+- Removed all integration-test products and categories after verification.
+
+## 2026-07-16 — Complete product content and recommendations
+
+### Done
+- Expanded the administrator product form for specifications, notices, original price, LINE inquiry copy, tags, merchandising flags, SEO fields, sold-out recommendation policy, and manual recommendations.
+- Added dependency-free image ordering controls using the existing complete-order API and retained independent primary-image selection.
+- Added tag persistence and recommendation persistence with validation against missing or self-referenced products.
+- Added public product specifications, notices, tags, original-price display, native sharing fallback, and related-product cards.
+- Implemented `BR-005` recommendation priority: manual selection, same category, then other featured products; all public related products use the price-safe projection.
+
+### Verification
+- Root Nuxt typecheck passes.
+- Nest API production compilation passes.
+- API unit tests pass (7/7, including related-product price privacy) and E2E tests pass (1/1).

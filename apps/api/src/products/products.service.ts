@@ -34,27 +34,48 @@ export class ProductsService {
   async findPublicBySlug(slug: string) {
     const product = await this.repository.findPublicBySlug(slug);
     if (!product) throw new NotFoundException('找不到商品');
-    return this.toPublicProduct(product);
+    const relatedProducts = await this.repository.findRelatedProducts(
+      product.id,
+      product.categories.map((item) => item.categoryId),
+      product.showSoldOutInRelated,
+    );
+    return {
+      ...this.toPublicProduct(product),
+      relatedProducts: relatedProducts.map((item) => this.toPublicProduct(item)),
+    };
   }
 
   async create(dto: CreateProductDto) {
-    this.validateCommerceRules(dto);
-    await this.validateCategories(dto.categoryIds);
-    return this.repository.create(dto);
+    const normalized = this.normalizeProductInput(dto);
+    this.validateCommerceRules(normalized);
+    await this.validateCategories(normalized.categoryIds);
+    await this.validateRecommendations(normalized.recommendationIds ?? []);
+    return this.repository.create(normalized);
   }
 
   async update(id: string, dto: UpdateProductDto) {
     const existing = await this.requireProduct(id);
+    const normalized = this.normalizeProductInput(dto);
     const merged = {
-      priceMode: dto.priceMode ?? existing.priceMode,
+      priceMode: normalized.priceMode ?? existing.priceMode,
       publicPrice:
-        dto.publicPrice ?? (existing.salePrice ? existing.salePrice.toString() : undefined),
-      acceptsShopee: dto.acceptsShopee ?? existing.acceptsShopee,
-      shopeeUrl: dto.shopeeUrl ?? existing.shopeeUrl ?? undefined,
+        normalized.publicPrice ?? (existing.salePrice ? existing.salePrice.toString() : undefined),
+      originalPrice: normalized.originalPrice ?? undefined,
+      acceptsShopee: normalized.acceptsShopee ?? existing.acceptsShopee,
+      shopeeUrl:
+        normalized.shopeeUrl !== undefined
+          ? normalized.shopeeUrl ?? undefined
+          : existing.shopeeUrl ?? undefined,
     };
     this.validateCommerceRules(merged);
-    if (dto.categoryIds) await this.validateCategories(dto.categoryIds);
-    return this.repository.update(id, dto);
+    if (normalized.categoryIds) await this.validateCategories(normalized.categoryIds);
+    if (normalized.recommendationIds) {
+      if (normalized.recommendationIds.includes(id)) {
+        throw new BadRequestException('不可將商品推薦給自己');
+      }
+      await this.validateRecommendations(normalized.recommendationIds);
+    }
+    return this.repository.update(id, normalized);
   }
 
   async delete(id: string): Promise<void> {
@@ -132,17 +153,36 @@ export class ProductsService {
     if (count !== ids.length) throw new BadRequestException('包含不存在的商品分類');
   }
 
+  private async validateRecommendations(ids: string[]): Promise<void> {
+    if (!ids.length) return;
+    const count = await this.repository.countProducts(ids);
+    if (count !== ids.length) throw new BadRequestException('包含不存在的推薦商品');
+  }
+
+  private normalizeProductInput<T extends CreateProductDto | UpdateProductDto>(dto: T): T {
+    return {
+      ...dto,
+      ...(dto.tagNames
+        ? { tagNames: [...new Set(dto.tagNames.map((name) => name.trim()).filter(Boolean))] }
+        : {}),
+    };
+  }
+
   private validateCommerceRules(dto: {
     priceMode: PriceMode;
     publicPrice?: string;
+    originalPrice?: string | null;
     acceptsShopee?: boolean;
-    shopeeUrl?: string;
+    shopeeUrl?: string | null;
   }): void {
     if (dto.priceMode === PriceMode.PUBLIC_PRICE && !dto.publicPrice) {
       throw new BadRequestException('公開價格商品必須提供 publicPrice');
     }
     if (dto.publicPrice !== undefined && Number(dto.publicPrice) < 0) {
       throw new BadRequestException('publicPrice 不可小於零');
+    }
+    if (dto.originalPrice != null && Number(dto.originalPrice) < 0) {
+      throw new BadRequestException('originalPrice 不可小於零');
     }
     if (dto.acceptsShopee && !dto.shopeeUrl) {
       throw new BadRequestException('啟用蝦皮導流時必須提供 shopeeUrl');

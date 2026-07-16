@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class ProductQueryDto {
   @IsOptional()
@@ -22,4 +22,12 @@ export class ProductQueryDto {
   @IsOptional()
   @IsUUID()
   categoryId?: string;
+
+  @IsOptional()
+  @IsIn(['newest', 'priceAsc', 'priceDesc'])
+  sort?: 'newest' | 'priceAsc' | 'priceDesc' = 'newest';
+
+  @IsOptional()
+  @IsIn(['true'])
+  homeOnly?: 'true';
 }
